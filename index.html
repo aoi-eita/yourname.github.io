@@ -5,47 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GS1データバーリーダー</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
         #video {
             width: 100%;
             max-width: 640px;
+            margin-bottom: 20px;
         }
-        #result {
+        #result, #debug {
             margin-top: 20px;
             font-size: 18px;
+        }
+        #debug {
+            color: #666;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
     <h1>GS1データバーリーダー</h1>
-    <video id="video" autoplay></video>
-    <div id="result"></div>
+    <video id="video" autoplay playsinline></video>
+    <div id="result">バーコードをかざしてください</div>
+    <div id="debug"></div>
 
     <script src="https://unpkg.com/@zxing/library@latest"></script>
     <script>
         const video = document.getElementById('video');
-        const result = document.getElementById('result');
-        const codeReader = new ZXing.BrowserMultiFormatReader();
+        const resultElement = document.getElementById('result');
+        const debugElement = document.getElementById('debug');
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        // GS1データバー（RSS-14）に特化した設定
+        const hints = new Map();
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.RSS_14]);
+        const codeReader = new ZXing.BrowserMultiFormatReader(hints);
+
+        // カメラの設定
+        const constraints = {
+            video: {
+                facingMode: "environment",
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints)
             .then(function(stream) {
                 video.srcObject = stream;
-                video.setAttribute("playsinline", true);
                 video.play();
+                debugElement.textContent = "カメラ起動成功";
                 scan();
             })
             .catch(function(error) {
                 console.error("カメラへのアクセスエラー:", error);
+                debugElement.textContent = "カメラエラー: " + error.message;
             });
 
         function scan() {
             codeReader.decodeFromVideoElement(video)
-                .then(function(decodedText) {
-                    result.textContent = "読み取り結果: " + decodedText;
-                    setTimeout(scan, 1000);
+                .then(function(result) {
+                    if (result) {
+                        resultElement.textContent = "読み取り結果: " + result.text;
+                        debugElement.textContent = "バーコードタイプ: " + result.format;
+                    } else {
+                        debugElement.textContent = "スキャン中...バーコードが検出されていません";
+                    }
                 })
                 .catch(function(err) {
-                    console.error(err);
-                    setTimeout(scan, 1000);
+                    console.error("スキャンエラー:", err);
+                    debugElement.textContent = "スキャンエラー: " + err.message;
+                })
+                .finally(function() {
+                    requestAnimationFrame(scan); // 連続的にスキャン
                 });
         }
     </script>
