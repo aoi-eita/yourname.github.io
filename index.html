@@ -1,87 +1,59 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GS1データバーリーダー</title>
+    <title>GS1 Databar Scanner</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
             margin: 0;
-            padding: 20px;
+            background-color: #f5f5f5;
         }
         #video {
-            width: 100%;
-            max-width: 640px;
-            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
         }
-        #result, #debug {
+        #result {
             margin-top: 20px;
-            font-size: 18px;
-        }
-        #debug {
-            color: #666;
-            font-size: 14px;
+            font-size: 1.5em;
+            color: #333;
         }
     </style>
 </head>
 <body>
-    <h1>GS1データバーリーダー</h1>
-    <video id="video" autoplay playsinline></video>
-    <div id="result">バーコードをかざしてください</div>
-    <div id="debug"></div>
+    <h1>GS1 Databar Scanner</h1>
+    <video id="video" width="320" height="240" autoplay></video>
+    <p id="result">Scanned Data will appear here</p>
 
-    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest"></script>
     <script>
         const video = document.getElementById('video');
         const resultElement = document.getElementById('result');
-        const debugElement = document.getElementById('debug');
 
-        // GS1データバー（RSS-14）に特化した設定
-        const hints = new Map();
-        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.RSS_14]);
-        const codeReader = new ZXing.BrowserMultiFormatReader(hints);
+        // Get access to the camera
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
+            video.srcObject = stream;
+            video.play();
+        }).catch(err => {
+            console.error('Error accessing camera: ', err);
+        });
 
-        // カメラの設定
-        const constraints = {
-            video: {
-                facingMode: "environment",
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
+        // ZXingライブラリを使用してバーコードをデコードする
+        const codeReader = new ZXing.BrowserBarcodeReader();
+        codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
+            if (result) {
+                resultElement.textContent = `Scanned Data: ${result.text}`;
             }
-        };
-
-        navigator.mediaDevices.getUserMedia(constraints)
-            .then(function(stream) {
-                video.srcObject = stream;
-                video.play();
-                debugElement.textContent = "カメラ起動成功";
-                scan();
-            })
-            .catch(function(error) {
-                console.error("カメラへのアクセスエラー:", error);
-                debugElement.textContent = "カメラエラー: " + error.message;
-            });
-
-        function scan() {
-            codeReader.decodeFromVideoElement(video)
-                .then(function(result) {
-                    if (result) {
-                        resultElement.textContent = "読み取り結果: " + result.text;
-                        debugElement.textContent = "バーコードタイプ: " + result.format;
-                    } else {
-                        debugElement.textContent = "スキャン中...バーコードが検出されていません";
-                    }
-                })
-                .catch(function(err) {
-                    console.error("スキャンエラー:", err);
-                    debugElement.textContent = "スキャンエラー: " + err.message;
-                })
-                .finally(function() {
-                    requestAnimationFrame(scan); // 連続的にスキャン
-                });
-        }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+                console.error('Error decoding barcode: ', err);
+            }
+        });
     </script>
 </body>
 </html>
