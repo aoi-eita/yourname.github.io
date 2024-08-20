@@ -22,6 +22,10 @@
         .input-container {
             margin-bottom: 20px;
         }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -39,7 +43,7 @@
 
         async function fetchOrderBook() {
             const symbolInput = document.getElementById('symbolInput').value.toUpperCase();
-            const symbol = symbolInput + '/USDT:USDT';
+            const symbol = symbolInput + '/USDT';
             let html = '<table>';
             html += '<tr><th>取引所名</th><th>買い注文価格</th><th>買い注文数量</th><th>売り注文価格</th><th>売り注文数量</th></tr>';
 
@@ -62,7 +66,7 @@
                     console.error(`${exchangeName}でエラーが発生しました:`, error);
                     html += `<tr>
                         <td>${exchangeName}</td>
-                        <td colspan="4">データの取得に失敗しました</td>
+                        <td colspan="4" class="error">エラー: ${error.message}</td>
                     </tr>`;
                 }
             }
