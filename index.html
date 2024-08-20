@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bybit板情報</title>
+    <title>複数取引所の板情報</title>
     <script src="https://unpkg.com/ccxt@3.0.72/dist/ccxt.browser.js"></script>
     <style>
         table {
             border-collapse: collapse;
             width: 100%;
+            margin-top: 20px;
         }
         th, td {
             border: 1px solid black;
@@ -18,40 +19,70 @@
         th {
             background-color: #f2f2f2;
         }
+        .input-container {
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
-    <h1>Bybit 板情報</h1>
-    <input type="text" id="symbolInput" placeholder="通貨ペアを入力（例：BTC）">
-    <button onclick="fetchOrderBook()">板情報を取得</button>
+    <h1>複数取引所の板情報</h1>
+    <div class="input-container">
+        <input type="text" id="symbolInput" placeholder="通貨ペアを入力（例：BTC）">
+        <button onclick="startFetching()">板情報を取得開始</button>
+        <button onclick="stopFetching()">停止</button>
+    </div>
     <div id="orderbook"></div>
 
     <script>
+        let intervalId = null;
+        const exchanges = ['bybit', 'mexc', 'gateio', 'phemex', 'bitget'];
+
         async function fetchOrderBook() {
-            const exchange = new ccxt.bybit();
             const symbolInput = document.getElementById('symbolInput').value.toUpperCase();
-            const symbol = symbolInput + '/USDT:USDT';
-            try {
-                const orderbook = await exchange.fetchOrderBook(symbol);
-                
-                let html = '<table>';
-                html += '<tr><th>価格</th><th>数量</th><th>合計</th></tr>';
-                
-                // 売り注文（最も低い価格の1つだけ）
-                html += '<tr><th colspan="3">売り注文</th></tr>';
-                const [askPrice, askAmount] = orderbook.asks[0];
-                html += `<tr><td>${askPrice.toFixed(2)}</td><td>${askAmount.toFixed(6)}</td><td>${(askPrice * askAmount).toFixed(2)}</td></tr>`;
-                
-                // 買い注文（最も高い価格の1つだけ）
-                html += '<tr><th colspan="3">買い注文</th></tr>';
-                const [bidPrice, bidAmount] = orderbook.bids[0];
-                html += `<tr><td>${bidPrice.toFixed(2)}</td><td>${bidAmount.toFixed(6)}</td><td>${(bidPrice * bidAmount).toFixed(2)}</td></tr>`;
-                
-                html += '</table>';
-                document.getElementById('orderbook').innerHTML = html;
-            } catch (error) {
-                console.error('エラーが発生しました:', error);
-                document.getElementById('orderbook').innerHTML = 'データの取得に失敗しました。通貨ペアが正しいか確認してください。';
+            const symbol = symbolInput + '/USDT';
+            let html = '<table>';
+            html += '<tr><th>取引所名</th><th>買い注文価格</th><th>買い注文数量</th><th>売り注文価格</th><th>売り注文数量</th></tr>';
+
+            for (const exchangeName of exchanges) {
+                try {
+                    const exchange = new ccxt[exchangeName]();
+                    const orderbook = await exchange.fetchOrderBook(symbol);
+                    
+                    const [bidPrice, bidAmount] = orderbook.bids[0] || [0, 0];
+                    const [askPrice, askAmount] = orderbook.asks[0] || [0, 0];
+                    
+                    html += `<tr>
+                        <td>${exchangeName}</td>
+                        <td>${bidPrice.toFixed(2)}</td>
+                        <td>${bidAmount.toFixed(6)}</td>
+                        <td>${askPrice.toFixed(2)}</td>
+                        <td>${askAmount.toFixed(6)}</td>
+                    </tr>`;
+                } catch (error) {
+                    console.error(`${exchangeName}でエラーが発生しました:`, error);
+                    html += `<tr>
+                        <td>${exchangeName}</td>
+                        <td colspan="4">データの取得に失敗しました</td>
+                    </tr>`;
+                }
+            }
+            
+            html += '</table>';
+            document.getElementById('orderbook').innerHTML = html;
+        }
+
+        function startFetching() {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+            fetchOrderBook(); // 即時実行
+            intervalId = setInterval(fetchOrderBook, 5000); // 5秒ごとに実行
+        }
+
+        function stopFetching() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
             }
         }
     </script>
