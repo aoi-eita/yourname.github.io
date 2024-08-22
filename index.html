@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>複数取引所の板情報</title>
-    <script src="https://unpkg.com/ccxt@3.0.72/dist/ccxt.browser.js"></script>
+    <title>MEXC板情報表示</title>
     <style>
         table {
             border-collapse: collapse;
             width: 100%;
-            margin-top: 20px;
         }
         th, td {
             border: 1px solid black;
@@ -19,76 +17,65 @@
         th {
             background-color: #f2f2f2;
         }
-        .input-container {
-            margin-bottom: 20px;
-        }
-        .error {
-            color: red;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
-    <h1>複数取引所の板情報</h1>
-    <div class="input-container">
-        <input type="text" id="symbolInput" placeholder="通貨ペアを入力（例：BTC）">
-        <button onclick="startFetching()">板情報を取得開始</button>
-        <button onclick="stopFetching()">停止</button>
+    <h1>MEXC板情報</h1>
+    <div>
+        <label for="symbol">取引ペア：</label>
+        <input type="text" id="symbol" value="BTCUSDT">
+        <button onclick="getOrderBook()">取得</button>
     </div>
-    <div id="orderbook"></div>
+    <h2>売り注文</h2>
+    <table id="asks">
+        <tr>
+            <th>価格</th>
+            <th>数量</th>
+        </tr>
+    </table>
+    <h2>買い注文</h2>
+    <table id="bids">
+        <tr>
+            <th>価格</th>
+            <th>数量</th>
+        </tr>
+    </table>
 
     <script>
-        let intervalId = null;
-        const exchanges = ['bybit', 'mexc', 'gateio', 'phemex', 'bitget','huobi'];
+        async function getOrderBook() {
+            const symbol = document.getElementById('symbol').value;
+            const url = `https://api.mexc.com/api/v3/depth?symbol=${symbol}&limit=10`;
 
-        async function fetchOrderBook() {
-            const symbolInput = document.getElementById('symbolInput').value.toUpperCase();
-            const symbol = symbolInput + '/USDT:USDT';
-            let html = '<table>';
-            html += '<tr><th>取引所名</th><th>買い注文価格</th><th>買い注文数量</th><th>売り注文価格</th><th>売り注文数量</th></tr>';
-
-            for (const exchangeName of exchanges) {
-                try {
-                    const exchange = new ccxt[exchangeName]();
-                    const orderbook = await exchange.fetchOrderBook(symbol);
-                    
-                    const [bidPrice, bidAmount] = orderbook.bids[0] || [0, 0];
-                    const [askPrice, askAmount] = orderbook.asks[0] || [0, 0];
-                    
-                    html += `<tr>
-                        <td>${exchangeName}</td>
-                        <td>${bidPrice.toFixed(2)}</td>
-                        <td>${bidAmount.toFixed(6)}</td>
-                        <td>${askPrice.toFixed(2)}</td>
-                        <td>${askAmount.toFixed(6)}</td>
-                    </tr>`;
-                } catch (error) {
-                    console.error(`${exchangeName}でエラーが発生しました:`, error);
-                    html += `<tr>
-                        <td>${exchangeName}</td>
-                        <td colspan="4" class="error">エラー: ${error.message}</td>
-                    </tr>`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTPエラー: ${response.status}`);
                 }
+                const data = await response.json();
+                
+                updateTable('asks', data.asks);
+                updateTable('bids', data.bids);
+            } catch (error) {
+                console.error('エラーが発生しました:', error);
+                alert('データの取得に失敗しました。');
             }
+        }
+
+        function updateTable(tableId, orders) {
+            const table = document.getElementById(tableId);
+            table.innerHTML = '<tr><th>価格</th><th>数量</th></tr>';
             
-            html += '</table>';
-            document.getElementById('orderbook').innerHTML = html;
+            orders.forEach(order => {
+                const row = table.insertRow(-1);
+                const priceCell = row.insertCell(0);
+                const quantityCell = row.insertCell(1);
+                priceCell.textContent = parseFloat(order[0]).toFixed(2);
+                quantityCell.textContent = parseFloat(order[1]).toFixed(6);
+            });
         }
 
-        function startFetching() {
-            if (intervalId) {
-                clearInterval(intervalId);
-            }
-            fetchOrderBook(); // 即時実行
-            intervalId = setInterval(fetchOrderBook, 5000); // 5秒ごとに実行
-        }
-
-        function stopFetching() {
-            if (intervalId) {
-                clearInterval(intervalId);
-                intervalId = null;
-            }
-        }
+        // ページ読み込み時に初期データを取得
+        getOrderBook();
     </script>
 </body>
 </html>
