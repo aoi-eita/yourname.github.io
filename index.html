@@ -39,11 +39,11 @@
 
     <script>
         let intervalId = null;
-        const exchanges = ['bybit', 'mexc', 'gateio', 'phemex', 'bitget'];
+        const exchanges = ['bybit', 'mexc', 'gateio', 'phemex', 'bitget','huobi'];
 
         async function fetchOrderBook() {
             const symbolInput = document.getElementById('symbolInput').value.toUpperCase();
-            const symbol = symbolInput + '/USDT';
+            const symbol = symbolInput + '/USDT:USDT';
             let html = '<table>';
             html += '<tr><th>取引所名</th><th>買い注文価格</th><th>買い注文数量</th><th>売り注文価格</th><th>売り注文数量</th></tr>';
 
